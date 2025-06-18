@@ -2,6 +2,8 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import * as THREE from "three";
 import { GLTFLoader, Timer } from "three/examples/jsm/Addons.js";
 import GUI from "lil-gui";
+import coffeeVertexShader from "./shaders/coffeeSmoke/vertexShader.glsl";
+import coffeeFragmentShader from "./shaders/coffeeSmoke/fragmentShader.glsl";
 
 /**
  * Base
@@ -26,18 +28,15 @@ const scene = new THREE.Scene();
  */
 
 const gltfLoader = new GLTFLoader();
+const textureLoader = new THREE.TextureLoader();
 
 /**
- * Update all materials
+ *  Textures
  */
 
-/**
- * Environment map
- */
-
-/**
- * Material
- */
+const perlinTexture = textureLoader.load("/textures/perlin.png");
+perlinTexture.wrapS = THREE.RepeatWrapping;
+perlinTexture.wrapT = THREE.RepeatWrapping;
 
 /**
  * Model
@@ -58,8 +57,37 @@ gltfLoader.load("/models/bakedModel.glb", (gltf) => {
 });
 
 /**
- * Lights
+ * Smoke
  */
+
+const smokeGeometry = new THREE.PlaneGeometry(1, 1, 16, 64);
+smokeGeometry.translate(0, 0.5, 0);
+smokeGeometry.scale(1.5, 6, 1.5);
+const smokeMaterial = new THREE.ShaderMaterial({
+  vertexShader: coffeeVertexShader,
+  fragmentShader: coffeeFragmentShader,
+  side: THREE.DoubleSide,
+  transparent: true,  
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  // wireframe: true,
+  uniforms: {
+    uPerlinTexture: new THREE.Uniform(perlinTexture),
+    uTime: new THREE.Uniform(0),
+    uSpeed: new THREE.Uniform(1),
+  },
+});
+
+const smokeMesh = new THREE.Mesh(smokeGeometry, smokeMaterial);
+smokeMesh.position.set(0, 1.83, 0);
+scene.add(smokeMesh);
+
+gui
+  .add(smokeMaterial.uniforms.uSpeed, "value")
+  .min(0)
+  .max(10)
+  .step(0.01)
+  .name("Smoke Speed");
 
 /**
  * Camera
@@ -92,13 +120,14 @@ const timer = new Timer();
 
 const tick = () => {
   timer.update();
-  // const elapsedTime = timer.getElapsed();
+  const elapsedTime = timer.getElapsed();
   // const deltaTime = timer.getDelta();
 
   // update controls to enable damping
   controls.update();
 
   // animations
+  smokeMaterial.uniforms.uTime.value = elapsedTime;
 
   // render
   renderer.render(scene, camera);
